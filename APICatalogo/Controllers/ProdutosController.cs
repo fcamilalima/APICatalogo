@@ -1,6 +1,6 @@
-﻿using APICatalogo.Context;
+﻿using APICatalogo.DTOs;
+using APICatalogo.DTOs.Mappings;
 using APICatalogo.Filters;
-using APICatalogo.Models;
 using APICatalogo.Repositories;
 using Microsoft.AspNetCore.Mvc;
 
@@ -10,82 +10,92 @@ namespace APICatalogo.Controllers
     [ApiController]
     public class ProdutosController : ControllerBase
     {
-        private readonly IProdutosRepository _produtoRepository;
-        //private readonly Repository<Produto> _repository;
         private readonly ILogger<ApiLoggingFilter> _logger;
-        public ProdutosController(IProdutosRepository produtoRepository, ILogger<ApiLoggingFilter> logger)
+        private readonly IUnitOfWork _unitOfWork;
+        public ProdutosController(ILogger<ApiLoggingFilter> logger, IUnitOfWork unitOfWork)
         {
-            //_repository = repository;
-            _produtoRepository = produtoRepository;
             _logger = logger;
+            _unitOfWork = unitOfWork;
         }
         [HttpGet("produtos/{id}")]
-        public ActionResult<IEnumerable<Produto>> GetProdutosPorCategoria(int id)
+        public ActionResult<IEnumerable<ProdutoDTO>> GetProdutosPorCategoria(int id)
         {
-            var produtos = _produtoRepository.GetProdutosPorCategoria(id);
+            var produtos = _unitOfWork.ProdutosRepository.GetProdutosPorCategoria(id);
             if (produtos is null)
             {
-                return NotFound();
+                return NotFound($"Produto com categoria id={id} não encontrado...");
             }
-            return Ok(produtos);
+            var produtosDTO = produtos.ToList().toProdutoDTOList();
+            return Ok(produtosDTO);
         }
 
         [HttpGet]
-        public ActionResult<IEnumerable<Produto>> Get()
+        public ActionResult<IEnumerable<ProdutoDTO>> Get()
         {
-            var produtos = _produtoRepository.GetAll().ToList();
+            var produtos = _unitOfWork.ProdutosRepository.GetAll().ToList();
             if (produtos is null)
             {
                 return NotFound("Produtos não encontrados!");
             }
-            return Ok(produtos);
+            var produtosDTO = produtos.ToList().toProdutoDTOList();
+            return Ok(produtosDTO);
         }
 
         [HttpGet("{id:int}", Name = "ObterProduto")]
-        public ActionResult<Produto> GetByID(int id)
+        public ActionResult<ProdutoDTO> GetByID(int id)
         {
-            var produto = _produtoRepository.GetById(c => c.ProdutoId == id);
+            var produto = _unitOfWork.ProdutosRepository.GetById(c => c.ProdutoId == id);
             if (produto is null)
             {
                 _logger.LogWarning($"Produto com id={id} não encontrado...");
                 return NotFound("Produto não encontrado!");
             }
-            return Ok(produto);
+            var produtosDTO = produto.toProdutoDTO();
+            return Ok(produtosDTO);
         }
 
         [HttpPost]
-        public ActionResult Post(Produto produto)
+        public ActionResult<ProdutoDTO> Post(ProdutoDTO produtoDTO)
         {
-            if (produto is null)
+            if (produtoDTO is null)
             {
                 return BadRequest("Produto inválido!");
             }
-            var produtoCriado = _produtoRepository.Create(produto);
-            return new CreatedAtRouteResult("ObterProduto", new { id = produtoCriado.ProdutoId }, produtoCriado);
+            var produto = produtoDTO.toProduto();
+            var produtoCriado = _unitOfWork.ProdutosRepository.Create(produto);
+
+            var novoProdutoDTO = produtoCriado.toProdutoDTO();
+            _unitOfWork.Commit();
+
+            return new CreatedAtRouteResult("ObterProduto", new { id = novoProdutoDTO.ProdutoId }, novoProdutoDTO);
         }
 
         [HttpPut("{id:int}")]
-        public ActionResult Put(int id, Produto produto)
+        public ActionResult<ProdutoDTO> Put(int id, ProdutoDTO produtoDTO)
         {
-            if (id != produto.ProdutoId)
+            if (id != produtoDTO.ProdutoId)
             {
                 return BadRequest("Produto não cadastrado!");
             }
-
-            var produtoAtualizado = _produtoRepository.Update(produto);
-            return Ok(produto);
+            var produto = produtoDTO.toProduto();
+            var produtoAtualizado = _unitOfWork.ProdutosRepository.Update(produto);
+            _unitOfWork.Commit();
+            var produtoAtualizadoDTO = produtoAtualizado.toProdutoDTO();
+            return Ok(produtoAtualizadoDTO);
         }
 
         [HttpDelete]
-        public ActionResult Delete(int id)
+        public ActionResult<ProdutoDTO> Delete(int id)
         {
-            var produto = _produtoRepository.GetById(p => p.ProdutoId == id);
+            var produto = _unitOfWork.ProdutosRepository.GetById(p => p.ProdutoId == id);
             if (produto is null)
             {
                 return NotFound("Produto não encontrado!");
             }
-            _produtoRepository.Delete(produto);
-            return Ok(produto);
+            _unitOfWork.ProdutosRepository.Delete(produto);
+            _unitOfWork.Commit();
+            var produtoDeletadoDTO = produto.toProdutoDTO();
+            return Ok(produtoDeletadoDTO);
         }
     }
 }

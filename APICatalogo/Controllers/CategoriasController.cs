@@ -1,9 +1,9 @@
-﻿using APICatalogo.Context;
+﻿using APICatalogo.DTOs;
+using APICatalogo.DTOs.Mappings;
 using APICatalogo.Filters;
 using APICatalogo.Models;
 using APICatalogo.Repositories;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace APICatalogo.Controllers;
 
@@ -12,71 +12,84 @@ namespace APICatalogo.Controllers;
 public class CategoriasController : Controller
 {
     private readonly ILogger<CategoriasController> _logger;
-    private readonly IRepository<Categoria> _repository;
+    private readonly IUnitOfWork _unitOfWork;
 
-    public CategoriasController(ICategoriasRepository repository, ILogger<CategoriasController> logger)
+    public CategoriasController(ILogger<CategoriasController> logger, IUnitOfWork unitOfWork)
     {
-        _repository = repository;
         _logger = logger;
+        _unitOfWork = unitOfWork;
     }
 
     [HttpGet]
     [ServiceFilter(typeof(ApiLoggingFilter))]
-    public ActionResult<IEnumerable<Categoria>> Get()
+    public ActionResult<IEnumerable<CategoriaDTO>> Get()
     {
-        var categorias = _repository.GetAll();
-        return Ok(categorias);
+        var categorias = _unitOfWork.CategoriasRepository.GetAll().ToList();
+        if(categorias is null)
+        {
+            _logger.LogWarning("Categorias não encontradas...");
+            return NotFound("Categorias não encontradas!");
+        }
+        var categoriasDTO = categorias.ToList().ToCategoriaDTOList();
+        return Ok(categoriasDTO);
     }
 
     [HttpGet("{id:int}", Name = "ObterCategoria")]
-    public  ActionResult<Categoria> Get(int id)
+    public  ActionResult<CategoriaDTO> Get(int id)
     {
-        var categoria =  _repository.GetById(c => c.CategoriaId == id);
+        var categoria =  _unitOfWork.CategoriasRepository.GetById(c => c.CategoriaId == id);
         if (categoria is null)
         {
             _logger.LogWarning($"Categoria com id={id} não encontrada...");
             return NotFound($"Categoria com id={id} não encontrada!");
         }
-        return Ok(categoria);
+        var categoriasDTO = categoria.ToCategoriaDTO();
+        return Ok(categoriasDTO);
     }
 
     [HttpPost]
-    public ActionResult Post([FromBody] Categoria categoria)
+    public ActionResult<CategoriaDTO> Post([FromBody] CategoriaDTO categoriaDTO)
     {
-        if (categoria is null)
+        if (categoriaDTO is null)
         {
             _logger.LogWarning("Categoria nula...");
             return BadRequest("Categoria inválida!");
         }
-        var categoriaCriada = _repository.Create(categoria);
+
+        var categoria = categoriaDTO.ToCategoria();
+        var categoriaCriada = _unitOfWork.CategoriasRepository.Create(categoria);
+        _unitOfWork.Commit();
 
         return new CreatedAtRouteResult("ObterCategoria", new { id = categoriaCriada.CategoriaId }, categoriaCriada);
     }
 
     [HttpPut("{id:int}")]
-    public ActionResult Put(int id, [FromBody] Categoria categoria)
+    public ActionResult<CategoriaDTO> Put(int id, [FromBody] CategoriaDTO categoriaDTO)
     {
-        if (id != categoria.CategoriaId)
+        if (id != categoriaDTO.CategoriaId)
         {
             _logger.LogWarning($"Categoria com id={id} não encontrada...");
             return BadRequest("Categoria não cadastrada!");
         }
-
-        _repository.Update(categoria);
+        var categoria = categoriaDTO.ToCategoria();
+        _unitOfWork.CategoriasRepository.Update(categoria);
+        _unitOfWork.Commit();
         return Ok(categoria);
     }
 
 
     [HttpDelete("{id:int}")]
-    public ActionResult Delete(int id)
+    public ActionResult<CategoriaDTO> Delete(int id)
     {
-        var categoria = _repository.GetById(c => c.CategoriaId == id);
+        var categoria = _unitOfWork.CategoriasRepository.GetById(c => c.CategoriaId == id);
         if (categoria is null)
         {
             _logger.LogWarning($"Categoria com id={id} não encontrada...");
             return NotFound("Categoria não encontrada!");
         }
-        var categoriaExcluida = _repository.Delete(categoria);
-        return Ok(categoriaExcluida);
+        var categoriaExcluida = _unitOfWork.CategoriasRepository.Delete(categoria);
+        _unitOfWork.Commit();
+        var categoriaExcluidaDTO = categoriaExcluida.ToCategoriaDTO();
+        return Ok(categoriaExcluidaDTO);
     }
 }
