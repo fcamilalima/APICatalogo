@@ -1,9 +1,9 @@
-﻿using APICatalogo.Context;
+﻿using APICatalogo.DTOs;
+using APICatalogo.DTOs.Mappings;
 using APICatalogo.Filters;
 using APICatalogo.Models;
+using APICatalogo.Repositories;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 
 namespace APICatalogo.Controllers;
 
@@ -11,100 +11,85 @@ namespace APICatalogo.Controllers;
 [ApiController]
 public class CategoriasController : Controller
 {
-    public readonly AppDbContext _context;
-    public readonly ILogger<CategoriasController> _logger;
+    private readonly ILogger<CategoriasController> _logger;
+    private readonly IUnitOfWork _unitOfWork;
 
-    public CategoriasController(AppDbContext contexto, ILogger<CategoriasController> logger)
+    public CategoriasController(ILogger<CategoriasController> logger, IUnitOfWork unitOfWork)
     {
-        _context = contexto;
         _logger = logger;
+        _unitOfWork = unitOfWork;
     }
 
     [HttpGet]
     [ServiceFilter(typeof(ApiLoggingFilter))]
-    public async Task<ActionResult<IEnumerable<Categoria>>> Get()
+    public ActionResult<IEnumerable<CategoriaDTO>> Get()
     {
-        try
+        var categorias = _unitOfWork.CategoriasRepository.GetAll().ToList();
+        if(categorias is null)
         {
-            _logger.LogInformation("================== GET api/categorias ==================");
-            return await _context.Categorias.AsNoTracking().ToListAsync();
+            _logger.LogWarning("Categorias não encontradas...");
+            return NotFound("Categorias não encontradas!");
         }
-        catch (Exception)
-        {
-            return StatusCode(StatusCodes.Status500InternalServerError,
-                "Ocorreu um erro ao tratar a sua solicitação.");
-        }
+        var categoriasDTO = categorias.ToList().ToCategoriaDTOList();
+        return Ok(categoriasDTO);
     }
 
     [HttpGet("{id:int}", Name = "ObterCategoria")]
-    public async Task<ActionResult<Categoria>> GetByID(int id)
+    public  ActionResult<CategoriaDTO> Get(int id)
     {
-        try
-        {
-            _logger.LogInformation($"================== GET api/categorias/id = {id} ==================");
-            var categoria = await _context.Categorias.AsNoTracking().FirstOrDefaultAsync(c => c.CategoriaId == id);
-            if (categoria is null)
-            {
-                _logger.LogInformation($"================== GET api/categorias/id -> NOT FOUND ==================");
-                return NotFound("Categoria não encontrada!");
-            }
-            return Ok(categoria);
-        }
-        catch (Exception)
-        {
-            return StatusCode(StatusCodes.Status500InternalServerError,
-                "Ocorreu um erro ao tratar a sua solicitação.");
-        }
-    }
-
-    [HttpGet("produtos")]
-    public ActionResult<IEnumerable<Categoria>> GetCategoriasProdutos()
-    {
-        try
-        {
-            _logger.LogInformation("================== GET api/categorias/produtos ==================");
-            return _context.Categorias.Include(c => c.Produtos).AsNoTracking().ToList();
-        }
-        catch (Exception)
-        {
-            return StatusCode(StatusCodes.Status500InternalServerError,
-                "Ocorreu um erro ao tratar a sua solicitação.");
-        }
-    }
-    [HttpPost]
-    public ActionResult Post([FromBody]Categoria categoria)
-    {
+        var categoria =  _unitOfWork.CategoriasRepository.GetById(c => c.CategoriaId == id);
         if (categoria is null)
         {
+            _logger.LogWarning($"Categoria com id={id} não encontrada...");
+            return NotFound($"Categoria com id={id} não encontrada!");
+        }
+        var categoriasDTO = categoria.ToCategoriaDTO();
+        return Ok(categoriasDTO);
+    }
+
+    [HttpPost]
+    public ActionResult<CategoriaDTO> Post([FromBody] CategoriaDTO categoriaDTO)
+    {
+        if (categoriaDTO is null)
+        {
+            _logger.LogWarning("Categoria nula...");
             return BadRequest("Categoria inválida!");
         }
-        _context.Categorias.Add(categoria);
-        _context.SaveChanges();
-        return new CreatedAtRouteResult("ObterCategoria", new { id = categoria.CategoriaId }, categoria);
+
+        var categoria = categoriaDTO.ToCategoria();
+        var categoriaCriada = _unitOfWork.CategoriasRepository.Create(categoria);
+        _unitOfWork.Commit();
+
+        return new CreatedAtRouteResult("ObterCategoria", new { id = categoriaCriada.CategoriaId }, categoriaCriada);
     }
 
     [HttpPut("{id:int}")]
-    public ActionResult Put(int id, [FromBody]Categoria categoria)
+    public ActionResult<CategoriaDTO> Put(int id, [FromBody] CategoriaDTO categoriaDTO)
     {
-        if (id != categoria.CategoriaId)
+        if (id != categoriaDTO.CategoriaId)
         {
+            _logger.LogWarning($"Categoria com id={id} não encontrada...");
             return BadRequest("Categoria não cadastrada!");
         }
-        _context.Entry(categoria).State = EntityState.Modified;
-        _context.SaveChanges();
+        var categoria = categoriaDTO.ToCategoria();
+        _unitOfWork.CategoriasRepository.Update(categoria);
+        _unitOfWork.Commit();
         return Ok(categoria);
     }
 
+
     [HttpDelete("{id:int}")]
-    public ActionResult Delete(int id)
+    public ActionResult<CategoriaDTO> Delete(int id)
     {
-        var categoria = _context.Categorias.FirstOrDefault(c => c.CategoriaId == id);
+        var categoria = _unitOfWork.CategoriasRepository.GetById(c => c.CategoriaId == id);
         if (categoria is null)
         {
+            _logger.LogWarning($"Categoria com id={id} não encontrada...");
             return NotFound("Categoria não encontrada!");
         }
-        _context.Categorias.Remove(categoria);
-        _context.SaveChanges();
-        return Ok(categoria);
+        var categoriaExcluida = _unitOfWork.CategoriasRepository.Delete(categoria);
+        _unitOfWork.Commit();
+        var categoriaExcluidaDTO = categoriaExcluida.ToCategoriaDTO();
+        return Ok(categoriaExcluidaDTO);
     }
 }
