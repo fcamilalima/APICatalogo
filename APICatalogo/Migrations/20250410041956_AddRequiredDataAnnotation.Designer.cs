@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace APICatalogo.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20250325070353_AtualizacaoProdutos2")]
-    partial class AtualizacaoProdutos2
+    [Migration("20250410041956_AddRequiredDataAnnotation")]
+    partial class AddRequiredDataAnnotation
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
