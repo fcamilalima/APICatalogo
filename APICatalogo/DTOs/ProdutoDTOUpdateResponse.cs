@@ -1,22 +1,16 @@
-﻿using System.ComponentModel.DataAnnotations.Schema;
-using System.ComponentModel.DataAnnotations;
+﻿using APICatalogo.Models;
 
 namespace APICatalogo.DTOs;
 
-public class ProdutoDTO
+public class ProdutoDTOUpdateResponse
 {
     public int ProdutoId { get; set; }
-    [Required]
-    [StringLength(80)]
     public string? Nome { get; set; }
-    [Required]
-    [StringLength(300)]
     public string? Descricao { get; set; }
-    [Required]
     public decimal Preco { get; set; }
-    [Required]
-    [StringLength(300)]
     public string? ImageURL { get; set; }
+    public float Estoque { get; set; }
+    public DateTime DataCadastro { get; set; }
     public int CategoriaId { get; set; }
-
+    public Categoria? Categorias { get; set; }
 }

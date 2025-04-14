@@ -5,9 +5,7 @@ namespace APICatalogo.Repositories;
 public class UnitOfWork : IUnitOfWork
 {
     private IProdutosRepository? _produtosRepository;
-
     private ICategoriasRepository? _categoriasRepository;
-
     public AppDbContext _context;
 
     public UnitOfWork(AppDbContext context)
@@ -31,9 +29,9 @@ public class UnitOfWork : IUnitOfWork
         }
     }
 
-    public void Commit()
+    public async Task CommitAsync()
     {
-        _context.SaveChanges();
+        await _context.SaveChangesAsync();
     }
 
     public void Dispose()

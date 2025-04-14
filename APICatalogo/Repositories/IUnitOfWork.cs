@@ -4,6 +4,6 @@ public interface IUnitOfWork
 {
     IProdutosRepository ProdutosRepository { get; }
     ICategoriasRepository CategoriasRepository { get; }
-    void Commit();
+    Task CommitAsync();
     void Dispose();
 }
