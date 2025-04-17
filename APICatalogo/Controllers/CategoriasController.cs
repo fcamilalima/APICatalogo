@@ -4,6 +4,7 @@ using APICatalogo.Filters;
 using APICatalogo.Models;
 using APICatalogo.Pagination;
 using APICatalogo.Repositories;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 using X.PagedList;
@@ -25,7 +26,8 @@ public class CategoriasController : Controller
 
     [HttpGet]
     [ServiceFilter(typeof(ApiLoggingFilter))]
-    public async Task<ActionResult<IEnumerable<CategoriaDTO>>> GetAsync()
+    [Authorize]
+    public async Task<ActionResult<IEnumerable<CategoriaDTO>>> Get()
     {
         var categorias = await _unitOfWork.CategoriasRepository.GetAllAsync();
         if (categorias is null)
@@ -97,7 +99,7 @@ public class CategoriasController : Controller
         return Ok(categoria);
     }
 
-
+    [Authorize(Policy = "AdminOnly")]
     [HttpDelete("{id:int}")]
     public async Task<ActionResult<CategoriaDTO>> Delete(int id)
     {
