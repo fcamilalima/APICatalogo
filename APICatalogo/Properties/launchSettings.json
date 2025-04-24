@@ -1,5 +1,14 @@
 {
   "profiles": {
+    "APICatalogo": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "dotnetRunMessages": true,
+      "applicationUrl": "https://localhost:7151;http://localhost:5208"
+    },
     "http": {
       "commandName": "Project",
       "launchBrowser": true,
