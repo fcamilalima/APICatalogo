@@ -12,8 +12,27 @@ using Microsoft.IdentityModel.Tokens;
 using APICatalogo.Models;
 using APICatalogo.Services;
 using Microsoft.OpenApi.Models;
+using Microsoft.AspNetCore.RateLimiting;
+using System.Threading.RateLimiting;
+using APICatalogo.RateLimitOptions;
+using Asp.Versioning;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddApiVersioning(o =>
+{
+    o.DefaultApiVersion = new ApiVersion(1, 0);
+    o.AssumeDefaultVersionWhenUnspecified = true;
+    o.ReportApiVersions = true;
+    o.ApiVersionReader = ApiVersionReader.Combine(
+        new QueryStringApiVersionReader(),
+        new UrlSegmentApiVersionReader()
+    );
+}).AddApiExplorer(options =>
+{
+    options.GroupNameFormat = "'v'VVV";
+    options.SubstituteApiVersionInUrl = true;
+});
 
 builder.Services
     .AddControllers(options =>
@@ -24,6 +43,16 @@ builder.Services
         options => options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles
     )
     .AddNewtonsoftJson();
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("OrigensComAcessoPermitido",
+        policy =>
+        {
+            policy.WithOrigins("https://localhost:7185")
+            .WithMethods("GET", "POST")
+            .AllowAnyHeader();
+        });
+});
 builder.Services.AddScoped<ApiLoggingFilter>();
 builder.Services.AddScoped<ApiExceptionFilter>();
 builder.Services.AddScoped<ICategoriasRepository, CategoriasRepository>();
@@ -63,7 +92,6 @@ builder.Services.AddSwaggerGen(options =>
         }
     });
 });
-//builder.Services.AddAuthentication("Bearer").AddJwtBearer();
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>()
     .AddEntityFrameworkStores<AppDbContext>()
     .AddDefaultTokenProviders();
@@ -81,17 +109,51 @@ var secretKey = builder.Configuration["JWT:SecretKey"]
     ?? throw new ArgumentException("Invalid secret key!");
 builder.Services.AddAuthorization(options =>
 {
-options.AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"));
-options.AddPolicy("SuperAdminOnly", policy =>
-    policy.RequireRole("SuperAdminOnly").RequireClaim("id", "macoratti"));
-options.AddPolicy("UserOnly", policy => policy.RequireRole("Users"));
+    options.AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"));
+    options.AddPolicy("SuperAdminOnly", policy =>
+        policy.RequireRole("SuperAdminOnly").RequireClaim("id", "macoratti"));
+    options.AddPolicy("UserOnly", policy => policy.RequireRole("Users"));
     options.AddPolicy("ExclusiveOnly", policy =>
     {
         policy.RequireAssertion(context => context.User.HasClaim(claim =>
-            claim.Type == "id" && claim.Value == "macoratti") || 
+            claim.Type == "id" && claim.Value == "macoratti") ||
             context.User.IsInRole("SuperAdmin"));
     });
 });
+
+var myOptions = new MyRateLimitOptions();
+
+builder.Configuration.GetSection(MyRateLimitOptions.MyRateLimit).Bind(myOptions);
+
+builder.Services.AddRateLimiter(rateLimiterOptions =>
+{
+    rateLimiterOptions.AddFixedWindowLimiter(policyName: "fixedwindow", options =>
+    {
+        options.PermitLimit = myOptions.PermitLimit;
+        options.Window = TimeSpan.FromSeconds(myOptions.Window);
+        options.QueueLimit = myOptions.QueueLimit; 
+        options.QueueProcessingOrder = QueueProcessingOrder.NewestFirst;
+    });
+    rateLimiterOptions.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+});
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(
+        httpcontext => RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpcontext.User.Identity?.Name ??
+            httpcontext.Request.Headers.Host.ToString(),
+            factory: partition => new FixedWindowRateLimiterOptions
+            {
+                AutoReplenishment = true,
+                PermitLimit = 2,
+                Window = TimeSpan.FromSeconds(10),
+                QueueLimit = 0
+            }
+        ));
+});
+
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -112,10 +174,12 @@ builder.Services.AddAuthentication(options =>
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)),
     };
 });
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
 {
+    app.UseDeveloperExceptionPage();
     app.UseSwagger();
     app.UseSwaggerUI(c =>
     {
@@ -123,11 +187,18 @@ if (app.Environment.IsDevelopment())
     });
     app.ConfigureExceptionHandler();
 }
+else
+{
+    app.ConfigureExceptionHandler();
+}
 
 app.UseHttpsRedirection();
+app.UseStaticFiles();
+app.UseRouting();
+app.UseRateLimiter();
+app.UseCors();
 
+app.UseAuthentication();
 app.UseAuthorization();
-
 app.MapControllers();
-
 app.Run();
