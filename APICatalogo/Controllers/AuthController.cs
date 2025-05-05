@@ -12,6 +12,7 @@ namespace APICatalogo.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
+//[ApiExplorerSettings(IgnoreApi = true)]
 public class AuthController : ControllerBase
 {
     private readonly ITokenService _tokenService;
@@ -28,7 +29,12 @@ public class AuthController : ControllerBase
         _config = config;
         _logger = logger;
     }
-
+    /// <summary>
+    /// Verifica as credenciais de um usuário
+    /// </summary>
+    /// <param name="model">Um objeto do tipo UsuarioDTO</param>
+    /// <returns>Status 200 e o token para os clientes</returns>
+    /// <remarks>Retorna o Status 200 e o token</remarks>
     [HttpPost]
     [Route("login")]
     public async Task<IActionResult> Login([FromBody] LoginModel model)
@@ -57,13 +63,16 @@ public class AuthController : ControllerBase
             _ = int.TryParse(_config["JWT:RefreshTokenValidityInMinutes"], out int refreshTokenValidityInMinutes);
             user.RefreshToken = refreshToken;
             user.RefreshTokenExpiryTime = DateTime.Now.AddMinutes(refreshTokenValidityInMinutes);
-            user.RefreshToken = refreshToken;
             await _userManager.UpdateAsync(user);
+
+            var gmt3TimeZone = TimeZoneInfo.FindSystemTimeZoneById("E. South America Standard Time");
+            var expirationInGmt3 = TimeZoneInfo.ConvertTimeFromUtc(token.ValidTo, gmt3TimeZone);
+
             return Ok(new
             {
                 Token = new JwtSecurityTokenHandler().WriteToken(token),
                 RefreshToken = refreshToken,
-                Expiration = token.ValidTo
+                Expiration = expirationInGmt3.ToString("yyyy-MM-ddTHH:mm:sszzz") // Formato ISO 8601 com offset
             });
         }
         return Unauthorized(new
@@ -73,18 +82,27 @@ public class AuthController : ControllerBase
         //return Forbid();
     }
 
+    /// <summary>
+    /// Registra um novo usuário
+    /// </summary>
+    /// <param name="model">Um objeto UsuarioDTO</param>
+    /// <returns>Status 200</returns>
+    /// <remarks>Retorna o Status 200</remarks>
     [HttpPost]
     [Route("register")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ResponseModel), StatusCodes.Status500InternalServerError)]
+    [ProducesDefaultResponseType]
     public async Task<IActionResult> Register([FromBody] RegisterModel model)
     {
         var userExists = await _userManager.FindByNameAsync(model.UserName!);
-        if (userExists is not null)
+        if (userExists != null)
         {
             return StatusCode(StatusCodes.Status500InternalServerError,
                 new ResponseModel
                 {
                     Status = "Error",
-                    Message = "User already exists."
+                    Message = "Usuário já existe."
                 });
         }
         ApplicationUser user = new()
@@ -100,15 +118,17 @@ public class AuthController : ControllerBase
                 new ResponseModel
                 {
                     Status = "Error",
-                    Message = "User creation failed. Please check user details and try again."
+                    Message = "Criação de usuário falhou!"
                 });
         }
         return Ok(new ResponseModel
         {
-            Status = "Success",
-            Message = "User created successfully."
+            Status = "Successo",
+            Message = "Usuário criado com sucesso!."
         });
     }
+
+
 
     [HttpPost]
     [Route("refresh-token")]
@@ -129,8 +149,11 @@ public class AuthController : ControllerBase
         {
             return BadRequest("Invalid access token/refresh token!");
         }
+
         string username = principal.Identity.Name;
+
         var user = await _userManager.FindByNameAsync(username!);
+
         if (user == null || user.RefreshToken != refreshToken ||
             user.RefreshTokenExpiryTime <= DateTime.Now)
         {
@@ -142,12 +165,16 @@ public class AuthController : ControllerBase
         user.RefreshToken = newRefreshToken;
         await _userManager.UpdateAsync(user);
 
-        return Ok(newAcessToken);
+        return new ObjectResult(new TokenModel
+        {
+            AccessToken = new JwtSecurityTokenHandler().WriteToken(newAcessToken),
+            RefreshToken = newRefreshToken
+        });
     }
 
-    [Authorize(Policy = "ExclusiveOnly")]
     [HttpPost]
     [Route("revoke/{username}")]
+    [Authorize(Policy = "ExclusiveOnly")]
     public async Task<IActionResult> Revoke(string username)
     {
         var user = await _userManager.FindByNameAsync(username);
@@ -209,12 +236,12 @@ public class AuthController : ControllerBase
             var result = await _userManager.AddToRoleAsync(user, roleName);
             if (result.Succeeded)
             {
-                _logger.LogInformation(1, $"User {user.Email} added to the {roleName} role.");
+                _logger.LogInformation(1, $"Usuário {user.Email} adicionado para a role {roleName}.");
                 return StatusCode(StatusCodes.Status200OK,
                     new ResponseModel
                     {
-                        Status = "Success",
-                        Message = $"User {user.Email} added to role {roleName} successfully."
+                        Status = "Successo",
+                        Message = $"Usuário {user.Email} adicionou a role {roleName} com sucesso!"
                     });
             }
             else

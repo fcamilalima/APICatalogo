@@ -6,6 +6,7 @@ namespace APICatalogo.Controllers;
 [ApiController]
 [Route("api/v{version:apiVersion}/teste")]
 [ApiVersion("2.0")]
+[ApiExplorerSettings(IgnoreApi = true)]
 public class TesteV2Controller : Controller
 {
     [HttpGet]
