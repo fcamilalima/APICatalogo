@@ -16,6 +16,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using System.Threading.RateLimiting;
 using APICatalogo.RateLimitOptions;
 using Asp.Versioning;
+using System.Reflection;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -60,14 +61,28 @@ builder.Services.AddScoped<IProdutosRepository, ProdutosRepository>();
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
 builder.Services.AddScoped<ITokenService, TokenService>();
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new OpenApiInfo
     {
         Title = "APICatalogo",
-        Version = "v1"
+        Version = "v1",
+        Description = "Catálogo de Produtps e Categorias",
+        TermsOfService = new Uri("https://examplo.com/termos"),
+        Contact = new OpenApiContact
+        {
+            Name = "Camila Lima",
+            Email = "fcamilalima@gmail.com",
+            Url = new Uri("https://examplo.com/meu_site")
+        }, License = new OpenApiLicense
+        {
+            Name = "Licença de Uso",
+            Url = new Uri("https://examplo.com/licenca")
+        }
     });
+
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme()
     {
         Name = "Authorization",
@@ -77,6 +92,7 @@ builder.Services.AddSwaggerGen(options =>
         In = ParameterLocation.Header,
         Description = "Bearer JWT "
     });
+
     options.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
         {
@@ -91,7 +107,14 @@ builder.Services.AddSwaggerGen(options =>
             new string[] {}
         }
     });
+
+    var xmlFileName = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    options.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, xmlFileName));
+
 });
+
+
+
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>()
     .AddEntityFrameworkStores<AppDbContext>()
     .AddDefaultTokenProviders();
@@ -111,12 +134,12 @@ builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"));
     options.AddPolicy("SuperAdminOnly", policy =>
-        policy.RequireRole("SuperAdminOnly").RequireClaim("id", "macoratti"));
+        policy.RequireRole("SuperAdminOnly").RequireClaim("id", "superusuario"));
     options.AddPolicy("UserOnly", policy => policy.RequireRole("Users"));
     options.AddPolicy("ExclusiveOnly", policy =>
     {
         policy.RequireAssertion(context => context.User.HasClaim(claim =>
-            claim.Type == "id" && claim.Value == "macoratti") ||
+            claim.Type == "id" && claim.Value == "superusuario") ||
             context.User.IsInRole("SuperAdmin"));
     });
 });
@@ -131,7 +154,7 @@ builder.Services.AddRateLimiter(rateLimiterOptions =>
     {
         options.PermitLimit = myOptions.PermitLimit;
         options.Window = TimeSpan.FromSeconds(myOptions.Window);
-        options.QueueLimit = myOptions.QueueLimit; 
+        options.QueueLimit = myOptions.QueueLimit;
         options.QueueProcessingOrder = QueueProcessingOrder.NewestFirst;
     });
     rateLimiterOptions.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -183,7 +206,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI(c =>
     {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "API Catalogo v1");
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "APICatalogo");
     });
     app.ConfigureExceptionHandler();
 }
