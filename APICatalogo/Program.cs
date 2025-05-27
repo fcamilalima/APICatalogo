@@ -198,7 +198,14 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
+builder.Services.AddMemoryCache();
+
 var app = builder.Build();
+
+app.UseSwagger();
+app.UseSwaggerUI();
+
+app.ConfigureExceptionHandler();
 
 if (app.Environment.IsDevelopment())
 {
@@ -212,6 +219,14 @@ if (app.Environment.IsDevelopment())
 }
 else
 {
+    app.UseSwagger();
+    app.UseSwaggerUI(options =>
+    {
+        options.SwaggerEndpoint("/swagger/v1/swagger.json", "APICatalogo");
+        options.InjectStylesheet("/swaggercustom.css");
+        options.RoutePrefix = string.Empty;
+    });
+    app.UseHsts();
     app.ConfigureExceptionHandler();
 }
 
