@@ -32,7 +32,6 @@ O **APICatalogo** é uma API desenvolvida em ASP.NET Core para gerenciar um cat�
 
 ## Tecnologias Utilizadas
 - **.NET 8**
-- **ASP.NET Core Razor Pages**
 - **Entity Framework Core** (MySQL)
 - **xUnit** (Testes unitários)
 - **FluentAssertions** (Validação em testes)
