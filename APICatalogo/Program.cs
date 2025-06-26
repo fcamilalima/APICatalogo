@@ -25,6 +25,7 @@ builder.Services.AddApiVersioning(o =>
     o.DefaultApiVersion = new ApiVersion(1, 0);
     o.AssumeDefaultVersionWhenUnspecified = true;
     o.ReportApiVersions = true;
+    // o.ApiVersionReader = new UrlSegmentApiVersionReader();
     o.ApiVersionReader = ApiVersionReader.Combine(
         new QueryStringApiVersionReader(),
         new UrlSegmentApiVersionReader()
