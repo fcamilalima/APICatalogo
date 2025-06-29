@@ -9,9 +9,11 @@ using Newtonsoft.Json;
 
 namespace APICatalogo.Controllers
 {
-    [Route("api/[controller]")]
     [ApiController]
+    [Route("api/v{version:apiVersion}/[controller]")]
     [ApiConventionType(typeof(DefaultApiConventions))]
+    [Produces("application/json")]
+    [Authorize]
     //[ApiExplorerSettings(IgnoreApi = true)]
     public class ProdutosController : ControllerBase
     {
@@ -23,7 +25,8 @@ namespace APICatalogo.Controllers
             //_logger = logger;
             _unitOfWork = unitOfWork;
         }
-        [HttpGet("produtos/{id}")]
+
+        [HttpGet("categorias/{id}")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<ActionResult<IEnumerable<ProdutoDTO>>> GetProdutosPorCategoria(int id)
@@ -84,7 +87,7 @@ namespace APICatalogo.Controllers
         /// Exibe uma lista com todos os produtos
         /// </summary>
         /// <returns>Retorna uma lista de objetos de Produtos</returns>
-        [Authorize(Policy = "UserOnly")]
+        [Authorize(Policy = "SuperAdminOnly")]
         [HttpGet]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]

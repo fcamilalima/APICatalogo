@@ -17,7 +17,8 @@ using System.Configuration;
 namespace APICatalogo.Controllers;
 
 [EnableCors("OrigensComAcessoPermitido")]
-[Route("api/[controller]")]
+//[Route("api/[controller]")]
+[Route("api/v{version:apiVersion}/[controller]")]
 [ApiController]
 [Produces("application/json")]
 
@@ -121,7 +122,7 @@ public class CategoriasController : Controller
     ///     {
     ///         "categoriaId": 1,
     ///         "nome": "Categoria 1",
-    ///         "imageUrl": "https://examplo.com/imagem.jpg"
+    ///         "ImagemURL": "https://examplo.com/imagem.jpg"
     ///     }
     /// </remarks>
     /// <param name="categoriaDTO">Objeto Categoria</param>

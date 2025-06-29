@@ -25,11 +25,11 @@ builder.Services.AddApiVersioning(o =>
     o.DefaultApiVersion = new ApiVersion(1, 0);
     o.AssumeDefaultVersionWhenUnspecified = true;
     o.ReportApiVersions = true;
-    // o.ApiVersionReader = new UrlSegmentApiVersionReader();
-    o.ApiVersionReader = ApiVersionReader.Combine(
-        new QueryStringApiVersionReader(),
-        new UrlSegmentApiVersionReader()
-    );
+    o.ApiVersionReader = new UrlSegmentApiVersionReader();
+    //o.ApiVersionReader = ApiVersionReader.Combine(
+    //    new QueryStringApiVersionReader(),
+    //    new UrlSegmentApiVersionReader()
+    //);
 }).AddApiExplorer(options =>
 {
     options.GroupNameFormat = "'v'VVV";
@@ -134,14 +134,15 @@ var secretKey = builder.Configuration["JWT:SecretKey"]
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"));
-    options.AddPolicy("SuperAdminOnly", policy =>
-        policy.RequireRole("SuperAdminOnly").RequireClaim("id", "superusuario"));
+    options.AddPolicy("SuperAdminOnly", policy => policy.RequireRole("SuperAdmin"));
+    //options.AddPolicy("SuperAdminOnly", policy =>
+    //    policy.RequireRole("SuperAdminOnly").RequireClaim("id", "superusuario"));
     options.AddPolicy("UserOnly", policy => policy.RequireRole("Users"));
     options.AddPolicy("ExclusiveOnly", policy =>
     {
         policy.RequireAssertion(context => context.User.HasClaim(claim =>
-            claim.Type == "id" && claim.Value == "superusuario") ||
-            context.User.IsInRole("SuperAdmin"));
+            claim.Type == "id" && (claim.Value == "superusuario") ||
+            context.User.IsInRole("SuperAdmin")));
     });
 });
 
