@@ -16,7 +16,7 @@ public static class ProdutoDTOUpdateResponseMappingExtensions
             Nome = produto.Nome,
             Descricao = produto.Descricao,
             Preco = produto.Preco,
-            ImageURL = produto.ImageURL,
+            ImagemURL = produto.ImagemURL,
             Estoque = produto.Estoque,
             DataCadastro = produto.DataCadastro,
             CategoriaId = produto.CategoriaId

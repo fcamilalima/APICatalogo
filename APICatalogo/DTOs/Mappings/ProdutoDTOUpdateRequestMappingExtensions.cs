@@ -23,7 +23,7 @@ public static class ProdutoDTOUpdateRequestMappingExtensions
             Nome = produto.Nome,
             Descricao = produto.Descricao,
             Preco = produto.Preco,
-            ImageURL = produto.ImageURL,
+            ImagemURL = produto.ImagemURL,
             CategoriaId = produto.CategoriaId,
 
             Estoque = produtoDTOUpdateRequest.Estoque,
