@@ -4,23 +4,22 @@ using APICatalogo.Filters;
 using APICatalogo.Models;
 using APICatalogo.Pagination;
 using APICatalogo.Repositories;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Caching.Memory;
 using Newtonsoft.Json;
 using X.PagedList;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Caching.Memory;
-using System.Configuration;
 
 namespace APICatalogo.Controllers;
 
-[EnableCors("OrigensComAcessoPermitido")]
+[Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+//[EnableCors("OrigensComAcessoPermitido")]
 //[Route("api/[controller]")]
 [Route("api/v{version:apiVersion}/[controller]")]
-[ApiController]
 [Produces("application/json")]
+[ApiController]
 
 //[ApiExplorerSettings(IgnoreApi = true)]
 //[EnableRateLimiting("fixedwindow")]
@@ -35,6 +34,13 @@ public class CategoriasController : Controller
         _logger = logger;
         _unitOfWork = unitOfWork;
         _cache = cache;
+    }
+
+    [AllowAnonymous]
+    [HttpGet("teste")]
+    public string GetTeste()
+    {
+        return $"CategoriasController - {DateTime.Now.ToLongDateString().ToString()}";
     }
 
     /// <summary>
@@ -66,6 +72,7 @@ public class CategoriasController : Controller
         var categoriasDTO = categorias.ToList().ToCategoriaDTOList();
         return Ok(categoriasDTO);
     }
+
     [HttpGet("pagination")]
     public async Task<ActionResult<IEnumerable<CategoriaDTO>>> GetCategoriasAsync(
         [FromQuery] CategoriasParameters categoriasParameters)
@@ -88,7 +95,7 @@ public class CategoriasController : Controller
     /// </summary>
     /// <param name="id"></param>
     /// <returns>Lista de objetos Categoria</returns>
-    [DisableCors]
+    //[DisableCors]
     [HttpGet("{id:int}", Name = "ObterCategoria")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
