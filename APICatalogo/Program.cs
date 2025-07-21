@@ -36,6 +36,17 @@ builder.Services.AddApiVersioning(o =>
     options.SubstituteApiVersionInUrl = true;
 });
 
+builder.Services.AddCors(
+    options =>
+    {
+        options.AddPolicy("EnableCORS", builder => { 
+            builder.AllowAnyOrigin()
+                .AllowAnyHeader()
+                .AllowAnyMethod()
+                .Build();
+        });
+    }
+);
 builder.Services
     .AddControllers(options =>
     {
@@ -45,16 +56,18 @@ builder.Services
         options => options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles
     )
     .AddNewtonsoftJson();
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("OrigensComAcessoPermitido",
-        policy =>
-        {
-            policy.WithOrigins("https://localhost:7185")
-            .WithMethods("GET", "POST")
-            .AllowAnyHeader();
-        });
-});
+
+//builder.Services.AddCors(options =>
+//{
+//    options.AddPolicy("OrigensComAcessoPermitido",
+//        policy =>
+//        {
+//            policy.WithOrigins("https://localhost:7185", "https://localhost:4200")
+//            .WithMethods("GET", "POST")
+//            .AllowAnyHeader();
+//        });
+//});
+
 builder.Services.AddScoped<ApiLoggingFilter>();
 builder.Services.AddScoped<ApiExceptionFilter>();
 builder.Services.AddScoped<ICategoriasRepository, CategoriasRepository>();
@@ -235,8 +248,8 @@ else
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
+app.UseCors("EnableCORS");
 app.UseRateLimiter();
-app.UseCors();
 
 app.UseAuthentication();
 app.UseAuthorization();
